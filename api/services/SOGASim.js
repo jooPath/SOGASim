@@ -23,9 +23,8 @@ var config = {
 module.exports = {
 	start: function (mode) {// 1: SOGA1, 2: SOGA2
 
-		var d = new Date();
-		var time_default = d.getTime();
-		console.log('soga' + time_default);
+		var time_default = new Date().getTime();
+		console.log('soga' + mode + ': started at ' + time_default);
 		chr_init();
 
 		fitness(0.5);
@@ -36,8 +35,7 @@ module.exports = {
 
 			if(gen == 1 || gen %1000 == 0)
 			{
-				d = new Date();
-				var telapse = d.getTime() - time_default;
+				var telapse = new Date().getTime() - time_default;
 				console.log(gen + ": " + _.max(config.chrs, function (chr) {
 						return chr.fit;
 					}).fit + ", avg :" + _.sum(config.chrs, function (chr) {
@@ -85,7 +83,7 @@ module.exports = {
 
 					if (mode != 1) {
 						var mkspanc0 = mkspan(c0);
-						var min_ms = _.min(fit, function (chr) {
+						var min_ms = _.min(config.chrs, function (chr) {
 							return chr.makespan;
 						}).makespan;
 						min_ms = Math.min(min_ms, mkspanc0.makespan);
@@ -118,6 +116,8 @@ module.exports = {
 				}
 			}
 		}
+
+		var time_default = new Date().getTime();
 		var ch_opt = simple_scheduling();
 		var mindex = _.findIndex(config.chrs, _.min(config.chrs, function (chr) {
 			return chr.fit;
@@ -127,7 +127,9 @@ module.exports = {
 		config.chrs[mindex].au = ch_opt.au;
 
 		fitness(0.5);
-		console.log("opt1 : " + config.chrs[mindex].fit);// + ", avg :" + _.sum(config.chrs, function (chr) {return chr.fit;}) / config.chrs.length);
+		var etime = new Date().getTime() - time_default;
+
+		console.log("opt1 : " + config.chrs[mindex].fit + ', elapsed: ' + etime);// + ", avg :" + _.sum(config.chrs, function (chr) {return chr.fit;}) / config.chrs.length);
 
 	},
 	init: function () {
@@ -240,11 +242,17 @@ function mutation(chromosome) {
 };
 
 function simple_scheduling(){
-	var makespans = new Array(config.num_resources), ms = 0, au = 0, sum = 0;
+	var makespans = new Array(config.num_resources);
 	var chr = new Array(config.num_tasks);
+	var ms = 0, au = 0, sum = 0;
+
 	for(var i=0;i<config.num_resources;i++)makespans[i] = 0;
+	//console.log(makespans);
+
 	for(var i=0;i<config.prob.length;i++){
-		var mindex =_.findIndex(config.chrs,  _.min(makespans));
+		var mindex =_.findIndex(makespans,  function(chr){ return chr == _.min(makespans); });
+		//console.log(_.min(makespans));
+		//console.log(mindex);
 		chr[i] = mindex;
 		makespans[mindex] += config.jobs[config.prob[i]];
 	}
@@ -255,5 +263,7 @@ function simple_scheduling(){
 			ms = makespans[i];
 	}
 	au = sum / (ms * config.num_resources);    // 0 <= au <= 1
+
+	//console.log('mm', makespans[mindex], ms, au);
 	return {chr: chr, ms: ms, au: au};
 }
