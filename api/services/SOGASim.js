@@ -34,7 +34,7 @@ module.exports = {
 
 		for (var gen = 1; gen <= config.num_iteration; gen++) {
 
-			if(gen == 1 || gen %100 == 0)
+			if(gen == 1 || gen %1000 == 0)
 			{
 				d = new Date();
 				var telapse = d.getTime() - time_default;
@@ -118,25 +118,16 @@ module.exports = {
 				}
 			}
 		}
-
-		var ch_opt = [];
-		for (var i = 0; i < config.num_tasks; i++) {
-			ch_opt.push(i % config.num_resources);
-		}
+		var ch_opt = simple_scheduling();
 		var mindex = _.findIndex(config.chrs, _.min(config.chrs, function (chr) {
 			return chr.fit;
 		}));
-		//console.log(config.chrs[mindex].fit + ' ' + mindex);
-
-		res = mkspan(ch_opt);
-		config.chrs[mindex].chr = ch_opt;
-		config.chrs[mindex].ms = res.makespan;
-		config.chrs[mindex].au = res.utility;
+		config.chrs[mindex].chr = ch_opt.chr;
+		config.chrs[mindex].ms = ch_opt.ms;
+		config.chrs[mindex].au = ch_opt.au;
 
 		fitness(0.5);
-		console.log("opt : " + _.max(config.chrs, function (chr) {
-				return chr.fit;
-			}).fit);// + ", avg :" + _.sum(config.chrs, function (chr) {return chr.fit;}) / config.chrs.length);
+		console.log("opt1 : " + config.chrs[mindex].fit);// + ", avg :" + _.sum(config.chrs, function (chr) {return chr.fit;}) / config.chrs.length);
 
 	},
 	init: function () {
@@ -154,23 +145,24 @@ module.exports = {
 };
 
 function chr_init() {
-	config.chrs = [];
+	config.chrs = new Array(config.archive_size); // [];
 	for (var j = 0; j < config.archive_size; j++) {
-		var chromosome = [];
+		var chromosome = new Array( config.num_tasks );
 		for (var i = 0; i < config.num_tasks; i++) {
 			//chromosome.push([Math.floor(Math.random() * num_jobs), Math.floor(Math.random() * num_resources)]); // i task -> rand resource
-			chromosome.push(Math.floor(Math.random() * config.num_resources)); // i task -> rand resource
+			//chromosome.push(Math.floor(Math.random() * config.num_resources)); // i task -> rand resource
+			chromosome[i] = Math.floor(Math.random() * config.num_resources); // i task -> rand resource
 		}
 		//var fit = fitness(chromosome, 0.5);
 
 		var mk = mkspan(chromosome);
-
-		config.chrs.push({chr: chromosome, ms: mk.makespan, au: mk.utility, fit: 0});
+		config.chrs[j] = {chr: chromosome, ms: mk.makespan, au: mk.utility, fit: 0};
+		//config.chrs.push({chr: chromosome, ms: mk.makespan, au: mk.utility, fit: 0});
 	}
 }
 
 function mkspan(chromosome) {
-	var makespans = new Array(), ms = 0, au = 0, sum = 0;
+	var makespans = new Array(config.num_resources), ms = 0, au = 0, sum = 0;
 
 	for (var i = 0; i < config.num_resources; i++)
 		makespans[i] = 0;
@@ -246,3 +238,22 @@ function mutation(chromosome) {
 	}
 	return chromosome;
 };
+
+function simple_scheduling(){
+	var makespans = new Array(config.num_resources), ms = 0, au = 0, sum = 0;
+	var chr = new Array(config.num_tasks);
+	for(var i=0;i<config.num_resources;i++)makespans[i] = 0;
+	for(var i=0;i<config.prob.length;i++){
+		var mindex =_.findIndex(config.chrs,  _.min(makespans));
+		chr[i] = mindex;
+		makespans[mindex] += config.jobs[config.prob[i]];
+	}
+
+	for (var i = 0; i < makespans.length; i++) {
+		sum += makespans[i];
+		if (makespans[i] >= ms)
+			ms = makespans[i];
+	}
+	au = sum / (ms * config.num_resources);    // 0 <= au <= 1
+	return {chr: chr, ms: ms, au: au};
+}
